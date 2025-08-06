@@ -1,4 +1,4 @@
-module github.com/perc400/hw01_hello_otus
+module github.com/perc400/hw/hw01_hello_otus
 
 go 1.23.11
 
