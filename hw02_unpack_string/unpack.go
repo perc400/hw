@@ -8,40 +8,40 @@ import (
 
 var ErrInvalidString = errors.New("invalid string")
 
+func isDigit(r rune) (int, bool) {
+	d, err := strconv.Atoi(string(r))
+	return d, err == nil
+}
+
 func Unpack(input string) (string, error) {
 	if input == "" {
 		return "", nil
 	}
 
 	runes := []rune(input)
-	if _, err := strconv.Atoi(string(runes[0])); err == nil {
+	if _, ok := isDigit(runes[0]); ok {
 		return "", ErrInvalidString
-	}
-
-	for index := 0; index < len(runes)-1; index++ {
-		if _, err := strconv.Atoi(string(runes[index])); err == nil {
-			if _, err := strconv.Atoi(string(runes[index+1])); err == nil {
-				return "", ErrInvalidString
-			}
-			continue
-		}
 	}
 
 	var builder strings.Builder
 	for index := 0; index < len(runes); index++ {
+		_, ok := isDigit(runes[index])
+
 		if index == len(runes)-1 {
-			if _, err := strconv.Atoi(string(runes[index])); err != nil {
+			if !ok {
 				builder.WriteRune(runes[index])
 			}
 			break
 		}
 
-		if _, err := strconv.Atoi(string(runes[index])); err == nil {
+		if ok {
+			if _, ok := isDigit(runes[index+1]); ok {
+				return "", ErrInvalidString
+			}
 			continue
 		}
 
-		times, err := strconv.Atoi(string(runes[index+1]))
-		if err != nil {
+		if times, ok := isDigit(runes[index+1]); !ok {
 			builder.WriteRune(runes[index])
 		} else {
 			builder.WriteString(strings.Repeat(string(runes[index]), times))
