@@ -11,7 +11,7 @@ type WordFrequency struct {
 	Count int
 }
 
-var wordRegexp = regexp.MustCompile(`[а-яА-Яa-zA-ZЁё0-9]+(?:-+[а-яА-Яa-zA-ZЁё0-9]+)*|[^-\s\p{P}]+`)
+var wordRegexp = regexp.MustCompile(`[\p{L}\p{N}]+(?:-+[\p{L}\p{N}]+)*|[^-\s\p{P}]+|\p{P}{2,}`)
 
 func Top10(text string) []string {
 	if text == "" {
