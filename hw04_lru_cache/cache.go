@@ -5,7 +5,7 @@ type Key string
 type Cache interface {
 	Set(key Key, value interface{}) bool
 	Get(key Key) (interface{}, bool)
-	Clear()
+	Clear(key Key)
 }
 
 type lruCache struct {
@@ -30,10 +30,11 @@ func (lruCache *lruCache) Set(key Key, value interface{}) bool {
 	}
 
 	newElement := lruCache.queue.PushFront(value)
+	newElement.Key = key
 	lruCache.items[key] = newElement
 
 	if lruCache.queue.Len() > lruCache.capacity {
-		lruCache.Clear()
+		lruCache.Clear(lruCache.queue.Back().Key)
 	}
 
 	return false
@@ -47,12 +48,7 @@ func (lruCache *lruCache) Get(key Key) (interface{}, bool) {
 	return nil, false
 }
 
-func (lruCache *lruCache) Clear() {
-	valueFromQueue := lruCache.queue.Back().Value
+func (lruCache *lruCache) Clear(key Key) {
 	lruCache.queue.Remove(lruCache.queue.Back())
-	for key, element := range lruCache.items {
-		if element.Value == valueFromQueue {
-			delete(lruCache.items, key)
-		}
-	}
+	delete(lruCache.items, key)
 }
