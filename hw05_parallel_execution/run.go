@@ -3,53 +3,22 @@ package hw05parallelexecution
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
 
 type Task func() error
 
-func sendTasks(tasks []Task, tasksChannel chan Task, doneChannel chan struct{}) {
-	for _, task := range tasks {
-		select {
-		case <-doneChannel:
-			close(tasksChannel)
-			return
-		case tasksChannel <- task:
-		}
-	}
-	close(tasksChannel)
-}
-
-func countErrors(errorsChannel chan error, maxErrorsCount int, doneChannel chan struct{}) {
-	errorsCount := 0
-	for err := range errorsChannel {
-		if err != nil {
-			errorsCount++
-			if errorsCount >= maxErrorsCount {
-				close(doneChannel)
-				return
-			}
-		}
-	}
-}
-
-func doTasks(waitGroup *sync.WaitGroup, tasksChannel chan Task, errorsChannel chan error, doneChannel chan struct{}) {
+func doTasks(waitGroup *sync.WaitGroup, once *sync.Once, errorsCount *int32, maxErrorsCount int, tasksChannel chan Task, doneChannel chan struct{}) {
 	defer waitGroup.Done()
-	for {
-		select {
-		case <-doneChannel:
-			return
-		case task, ok := <-tasksChannel:
-			if !ok {
+
+	for task := range tasksChannel {
+		if task() != nil {
+			atomic.AddInt32(errorsCount, 1)
+			if *errorsCount >= int32(maxErrorsCount) {
+				once.Do(func() { close(doneChannel) })
 				return
-			}
-			if task != nil {
-				select {
-				case <-doneChannel:
-					return
-				case errorsChannel <- task():
-				}
 			}
 		}
 	}
@@ -62,22 +31,31 @@ func Run(tasks []Task, n, m int) error {
 	}
 
 	var wg sync.WaitGroup
+	var once sync.Once
+	var errorsCount int32
 
 	tasksCh := make(chan Task)
-	errorsCh := make(chan error)
 	doneCh := make(chan struct{})
 
 	for i := 0; i < n; i++ {
 		wg.Add(1)
-		go doTasks(&wg, tasksCh, errorsCh, doneCh)
+		go doTasks(&wg, &once, &errorsCount, m, tasksCh, doneCh)
 	}
 
-	go countErrors(errorsCh, m, doneCh)
-
-	go sendTasks(tasks, tasksCh, doneCh)
+	breakSending := false
+	for _, task := range tasks {
+		select {
+		case <-doneCh:
+			breakSending = true
+		case tasksCh <- task:
+		}
+		if breakSending {
+			break
+		}
+	}
+	close(tasksCh)
 
 	wg.Wait()
-	close(errorsCh)
 
 	select {
 	case <-doneCh:
