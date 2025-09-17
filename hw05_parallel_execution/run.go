@@ -43,13 +43,12 @@ func doTasks(waitGroup *sync.WaitGroup, tasksChannel chan Task, errorsChannel ch
 		case task, ok := <-tasksChannel:
 			if !ok {
 				return
-			} else {
-				if task != nil {
-					select {
-					case <-doneChannel:
-						return
-					case errorsChannel <- task():
-					}
+			}
+			if task != nil {
+				select {
+				case <-doneChannel:
+					return
+				case errorsChannel <- task():
 				}
 			}
 		}
