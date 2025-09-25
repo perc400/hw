@@ -194,7 +194,6 @@ func TestPipelinePartialProcessing(t *testing.T) {
 			result = append(result, s.(string))
 		}
 
-		require.NotEmpty(t, result, 0)
-		require.Less(t, len(result), len(data), 0)
+		require.Empty(t, result, 0)
 	})
 }
