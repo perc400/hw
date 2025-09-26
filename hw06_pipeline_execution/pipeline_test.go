@@ -195,6 +195,7 @@ func TestPipelinePartialProcessing(t *testing.T) {
 			result = append(result, s.(string))
 		}
 		fmt.Println(len(result))
+		require.GreaterOrEqual(t, len(result), 1)
 		require.Less(t, len(result), len(data))
 	})
 }
