@@ -157,6 +157,7 @@ func TestPipelinePartialProcessing(t *testing.T) {
 			out := make(Bi)
 			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				defer close(out)
 				for v := range in {
 					time.Sleep(sleepPerStage)
@@ -194,6 +195,7 @@ func TestPipelinePartialProcessing(t *testing.T) {
 		for s := range ExecutePipeline(in, done, stages...) {
 			result = append(result, s.(string))
 		}
+		wg.Wait()
 		fmt.Println(len(result))
 		require.GreaterOrEqual(t, len(result), 1)
 		require.Less(t, len(result), len(data))
