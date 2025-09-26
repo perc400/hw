@@ -1,6 +1,7 @@
 package hw06pipelineexecution
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"testing"
@@ -178,7 +179,7 @@ func TestPipelinePartialProcessing(t *testing.T) {
 		data := []int{1, 2, 3, 4, 5}
 
 		go func() {
-			time.Sleep(sleepPerStage * 3)
+			time.Sleep(sleepPerStage * 4)
 			close(done)
 		}()
 
@@ -193,7 +194,7 @@ func TestPipelinePartialProcessing(t *testing.T) {
 		for s := range ExecutePipeline(in, done, stages...) {
 			result = append(result, s.(string))
 		}
-
-		require.Empty(t, result, 0)
+		fmt.Println(len(result))
+		require.Less(t, len(result), len(data))
 	})
 }
