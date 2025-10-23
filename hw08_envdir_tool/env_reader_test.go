@@ -41,6 +41,24 @@ func TestReadDir(t *testing.T) {
 		}
 	})
 
+	t.Run("target_is_a_directory", func(t *testing.T) {
+		testdataDirInfo, err := os.Lstat(testdataDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		filePath := filepath.Join(testdataDir, "test_directory")
+		if err := os.Mkdir(filePath, testdataDirInfo.Mode().Perm()); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Remove(filePath) })
+
+		_, err = ReadDir(testdataDir)
+		if !errors.Is(err, ErrNotAFile) {
+			t.Errorf("expected error ErrNotAFile but got %v", err)
+		}
+	})
+
 	t.Run("success", func(t *testing.T) {
 		refMap := Environment{
 			"BAR":   {Value: "bar", NeedRemove: false},

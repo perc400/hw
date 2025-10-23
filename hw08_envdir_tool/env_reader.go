@@ -12,6 +12,7 @@ import (
 var (
 	ErrUnsupportedFilename = errors.New("unsupported filename (contains \"=\" symbol)")
 	ErrDirectoryPath       = errors.New("not a directory")
+	ErrNotAFile            = errors.New("is a directory")
 )
 
 type Environment map[string]EnvValue
@@ -30,21 +31,23 @@ func ReadDir(dir string) (Environment, error) {
 		return nil, err
 	}
 
-	for _, file := range files {
-		if strings.Contains(file.Name(), "=") {
-			return nil, fmt.Errorf("file %s [%w]", file.Name(), ErrUnsupportedFilename)
-		}
-	}
-
 	environmentVariables := make(Environment)
 
 	for _, file := range files {
 		fileName := file.Name()
 		filePath := filepath.Join(dir, fileName)
 
+		if strings.Contains(fileName, "=") {
+			return nil, fmt.Errorf("file %s [%w]", fileName, ErrUnsupportedFilename)
+		}
+
 		fileInfo, err := os.Lstat(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("file %s info [%w]", fileName, err)
+		}
+
+		if fileInfo.IsDir() {
+			return nil, fmt.Errorf("%s is a directory [%w]", fileName, ErrNotAFile)
 		}
 
 		if fileInfo.Size() == 0 {
