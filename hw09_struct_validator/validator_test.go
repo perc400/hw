@@ -2,7 +2,9 @@ package hw09structvalidator
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -17,7 +19,7 @@ type (
 		Email  string          `validate:"regexp:^\\w+@\\w+\\.\\w+$"`
 		Role   UserRole        `validate:"in:admin,stuff"`
 		Phones []string        `validate:"len:11"`
-		meta   json.RawMessage //nolint:unused
+		meta   json.RawMessage //nolint:nolintlint
 	}
 
 	App struct {
@@ -36,16 +38,89 @@ type (
 	}
 )
 
+type MultiError []error
+
+func (m MultiError) Error() string {
+	if len(m) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(m))
+	for _, e := range m {
+		parts = append(parts, e.Error())
+	}
+	return strings.Join(parts, "; ")
+}
+
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		in          interface{}
 		expectedErr error
 	}{
 		{
-			// Place your code here.
+			in: Token{
+				Header:    []byte("{\"alg\": \"HS256\", \"typ\": \"JWT\"}"),
+				Payload:   []byte("{\"name\": \"John Doe\", \"admin\": true}"),
+				Signature: []byte("sa054lknflw34nrfasmfewo5r"),
+			},
+			expectedErr: nil,
 		},
-		// ...
-		// Place your code here.
+		{
+			in: Response{
+				Code: 201,
+				Body: "Resource Group not found",
+			},
+			expectedErr: MultiError{
+				ErrFieldIntNotInSet,
+			},
+		},
+		{
+			in: App{
+				Version: "deluxe",
+			},
+			expectedErr: MultiError{
+				ErrFieldStringInvalidLength,
+			},
+		},
+		{
+			in: App{
+				Version: "short",
+			},
+			expectedErr: nil,
+		},
+		{
+			in: User{
+				ID:     "nto015lr0g4wxxirdhjuyeyhxzlfg7hc534f",
+				Name:   "user",
+				Age:    21,
+				Email:  "Admin@p.f.ru",
+				Role:   "admin",
+				Phones: []string{"41241241241", "2", "1", "79999995099"},
+				meta:   []byte("{\"message\":\"test\"}"),
+			},
+			expectedErr: MultiError{
+				ErrFieldStringNotMatchRegex,
+				ErrFieldStringInvalidLength,
+				ErrFieldStringInvalidLength,
+			},
+		},
+		{
+			in: User{
+				ID:     "nto015lr0g4wxxirdhjuyeyhxzlfg7hc534fG",
+				Name:   "user",
+				Age:    4,
+				Email:  "user@mail.ru",
+				Role:   "stuff",
+				Phones: []string{"1", "2", "1", "79999995099"},
+				meta:   []byte("{\"message\":\"test\"}"),
+			},
+			expectedErr: MultiError{
+				ErrFieldStringInvalidLength,
+				ErrFieldIntLessThanMin,
+				ErrFieldStringInvalidLength,
+				ErrFieldStringInvalidLength,
+				ErrFieldStringInvalidLength,
+			},
+		},
 	}
 
 	for i, tt := range tests {
@@ -53,8 +128,39 @@ func TestValidate(t *testing.T) {
 			tt := tt
 			t.Parallel()
 
-			// Place your code here.
-			_ = tt
+			err := Validate(tt.in)
+			if tt.expectedErr == nil {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("unexpected error %v, got nil", tt.expectedErr)
+			}
+
+			var gotErrs ValidationErrors
+			if !errors.As(err, &gotErrs) {
+				t.Fatalf("expected ValidationErrors, got %T", err)
+			}
+
+			var wantErrs MultiError
+			if !errors.As(tt.expectedErr, &wantErrs) {
+				t.Fatalf("expected MultiError, got %T", tt.expectedErr)
+			}
+
+			if len(gotErrs) != len(wantErrs) {
+				t.Fatalf("expected %d errors, got %d (%v)", len(wantErrs), len(gotErrs), gotErrs)
+			}
+
+			for i := range gotErrs {
+				got := gotErrs[i].Err
+				want := wantErrs[i]
+				if !errors.Is(got, want) {
+					t.Fatalf("at index %d: expected %v, got %v", i, want, got)
+				}
+			}
 		})
 	}
 }
