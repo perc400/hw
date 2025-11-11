@@ -1,0 +1,15 @@
+goos: linux
+goarch: amd64
+pkg: github.com/perc400/hw/hw10_program_optimization
+cpu: 13th Gen Intel(R) Core(TM) i5-1340P
+                 │   old.txt    │               new.txt                │
+                 │    sec/op    │    sec/op     vs base                │
+GetDomainStat-16   622.8m ± 17%   192.8m ± 36%  -69.05% (p=0.000 n=10)
+
+                 │    old.txt    │               new.txt                │
+                 │     B/op      │     B/op      vs base                │
+GetDomainStat-16   302.19Mi ± 0%   12.99Mi ± 0%  -95.70% (p=0.000 n=10)
+
+                 │   old.txt    │               new.txt               │
+                 │  allocs/op   │  allocs/op   vs base                │
+GetDomainStat-16   2845.4k ± 0%   712.1k ± 0%  -74.97% (p=0.000 n=10)
