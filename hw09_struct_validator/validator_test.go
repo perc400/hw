@@ -26,6 +26,19 @@ type (
 		Version string `validate:"len:5"`
 	}
 
+	Price struct {
+		Value int `validate:"min"`
+	}
+
+	Role struct {
+		ID          string `json:"id" validate:"len:5"`
+		Permissions []byte `validate:"len:3"`
+	}
+
+	ServerError struct {
+		Code int `validate:"in:502,503,5o4"`
+	}
+
 	Token struct {
 		Header    []byte
 		Payload   []byte
@@ -56,6 +69,29 @@ func TestValidate(t *testing.T) {
 		in          interface{}
 		expectedErr error
 	}{
+		{
+			in: ServerError{
+				Code: 504,
+			},
+			expectedErr: ErrInvalidValidatorParam,
+		},
+		{
+			in: Role{
+				ID:          "fsdfs5",
+				Permissions: []byte("fsdf"),
+			},
+			expectedErr: ErrFieldUnsupportedKind,
+		},
+		{
+			in: Price{
+				Value: 10,
+			},
+			expectedErr: ErrFieldTagEmptyValue,
+		},
+		{
+			in:          123,
+			expectedErr: ErrArgumentNotStructure,
+		},
 		{
 			in: Token{
 				Header:    []byte("{\"alg\": \"HS256\", \"typ\": \"JWT\"}"),
@@ -127,40 +163,56 @@ func TestValidate(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
 			tt := tt
 			t.Parallel()
-
-			err := Validate(tt.in)
-			if tt.expectedErr == nil {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				return
-			}
-
-			if err == nil {
-				t.Fatalf("unexpected error %v, got nil", tt.expectedErr)
-			}
-
-			var gotErrs ValidationErrors
-			if !errors.As(err, &gotErrs) {
-				t.Fatalf("expected ValidationErrors, got %T", err)
-			}
-
-			var wantErrs MultiError
-			if !errors.As(tt.expectedErr, &wantErrs) {
-				t.Fatalf("expected MultiError, got %T", tt.expectedErr)
-			}
-
-			if len(gotErrs) != len(wantErrs) {
-				t.Fatalf("expected %d errors, got %d (%v)", len(wantErrs), len(gotErrs), gotErrs)
-			}
-
-			for i := range gotErrs {
-				got := gotErrs[i].Err
-				want := wantErrs[i]
-				if !errors.Is(got, want) {
-					t.Fatalf("at index %d: expected %v, got %v", i, want, got)
-				}
-			}
+			checkValidationResult(t, tt.in, tt.expectedErr)
 		})
+	}
+}
+
+func checkValidationResult(t *testing.T, in interface{}, expectedErr error) {
+	t.Helper()
+
+	err := Validate(in)
+
+	if expectedErr == nil {
+		checkNoError(t, err)
+		return
+	}
+	if err == nil {
+		t.Fatalf("expected error %v, got nil", expectedErr)
+	}
+
+	var iErr InternalError
+	if errors.As(err, &iErr) {
+		if !errors.Is(iErr.Err, expectedErr) {
+			t.Fatalf("expected internal error %v, got %v", expectedErr, iErr.Err)
+		}
+		return
+	}
+
+	var gotErrs ValidationErrors
+	if !errors.As(err, &gotErrs) {
+		t.Fatalf("expected ValidationErrors, got %T", err)
+	}
+
+	var wantErrs MultiError
+	if !errors.As(expectedErr, &wantErrs) {
+		t.Fatalf("expected MultiError, got %T", expectedErr)
+	}
+
+	if len(gotErrs) != len(wantErrs) {
+		t.Fatalf("expected %d errors, got %d (%v)", len(wantErrs), len(gotErrs), gotErrs)
+	}
+
+	for i := range gotErrs {
+		if !errors.Is(gotErrs[i].Err, wantErrs[i]) {
+			t.Fatalf("at index %d: expected %v, got %v", i, wantErrs[i], gotErrs[i].Err)
+		}
+	}
+}
+
+func checkNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
