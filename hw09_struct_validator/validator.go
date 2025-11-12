@@ -28,7 +28,7 @@ var stringValidators = map[string]validatorFunc{
 	"len": func(value reflect.Value, param string) (error, bool) {
 		length, err := strconv.Atoi(param)
 		if err != nil {
-			return fmt.Errorf("invalid param: %w", ErrInvalidValidatorParam), true
+			return ErrInvalidValidatorParam, true
 		}
 		if len(value.String()) != length {
 			return ErrFieldStringInvalidLength, false
@@ -38,7 +38,7 @@ var stringValidators = map[string]validatorFunc{
 	"regexp": func(value reflect.Value, param string) (error, bool) {
 		matched, err := regexp.MatchString(param, value.String())
 		if err != nil {
-			return fmt.Errorf("invalid param: %w", ErrInvalidValidatorParam), true
+			return ErrInvalidValidatorParam, true
 		}
 		if !matched {
 			return ErrFieldStringNotMatchRegex, false
@@ -60,7 +60,7 @@ var intValidators = map[string]validatorFunc{
 	"max": func(value reflect.Value, param string) (error, bool) {
 		maxValue, err := strconv.Atoi(param)
 		if err != nil {
-			return fmt.Errorf("invalid param: %w", ErrInvalidValidatorParam), true
+			return ErrInvalidValidatorParam, true
 		}
 		if value.Int() > int64(maxValue) {
 			return ErrFieldIntBiggerThanMax, false
@@ -70,7 +70,7 @@ var intValidators = map[string]validatorFunc{
 	"min": func(value reflect.Value, param string) (error, bool) {
 		minValue, err := strconv.Atoi(param)
 		if err != nil {
-			return fmt.Errorf("invalid param: %w", ErrInvalidValidatorParam), true
+			return ErrInvalidValidatorParam, true
 		}
 		if value.Int() < int64(minValue) {
 			return ErrFieldIntLessThanMin, false
@@ -83,7 +83,7 @@ var intValidators = map[string]validatorFunc{
 		for _, part := range set {
 			val, err := strconv.ParseInt(part, 10, 64)
 			if err != nil {
-				return fmt.Errorf("invalid param: %w", ErrInvalidValidatorParam), true
+				return ErrInvalidValidatorParam, true
 			}
 			if value.Int() == val {
 				found = true
@@ -111,17 +111,17 @@ func checkStringField(fieldName string, fieldValue reflect.Value, tags []string)
 	for _, tag := range tags {
 		validator, parameter, err := parseTag(tag)
 		if err != nil {
-			return nil, InternalError{Field: fieldName, Err: err}
+			return nil, err
 		}
 
 		fn, ok := stringValidators[validator]
 		if !ok {
-			return nil, InternalError{Field: fieldName, Err: err}
+			return nil, err
 		}
 
 		if err, internal := fn(fieldValue, parameter); err != nil {
 			if internal {
-				return nil, InternalError{Field: fieldName, Err: err}
+				return nil, err
 			}
 			errs = append(errs, ValidationError{Field: fieldName, Err: err})
 		}
@@ -139,17 +139,17 @@ func checkIntField(fieldName string, fieldValue reflect.Value, tags []string) (V
 	for _, tag := range tags {
 		validator, parameter, err := parseTag(tag)
 		if err != nil {
-			return nil, InternalError{Field: fieldName, Err: err}
+			return nil, err
 		}
 
 		fn, ok := intValidators[validator]
 		if !ok {
-			return nil, InternalError{Field: fieldName, Err: err}
+			return nil, err
 		}
 
 		if err, internal := fn(fieldValue, parameter); err != nil {
 			if internal {
-				return nil, InternalError{Field: fieldName, Err: err}
+				return nil, err
 			}
 			errs = append(errs, ValidationError{Field: fieldName, Err: err})
 		}
@@ -170,17 +170,17 @@ func checkSliceField(fieldName string, fieldValue reflect.Value, tags []string) 
 		case reflect.Int:
 			sliceItemErrors, err := checkIntField(fieldName+fmt.Sprintf("[%d]", i), fieldValue.Index(i), tags)
 			if err != nil {
-				return nil, InternalError{Field: fieldName, Err: err}
+				return nil, err
 			}
 			errs = append(errs, sliceItemErrors...)
 		case reflect.String:
 			sliceItemErrors, err := checkStringField(fieldName+fmt.Sprintf("[%d]", i), fieldValue.Index(i), tags)
 			if err != nil {
-				return nil, InternalError{Field: fieldName, Err: err}
+				return nil, err
 			}
 			errs = append(errs, sliceItemErrors...)
 		default:
-			return nil, InternalError{Field: fieldName, Err: ErrFieldUnsupportedKind}
+			return nil, ErrFieldUnsupportedKind
 		}
 	}
 
@@ -198,8 +198,6 @@ type InternalError struct {
 func (e InternalError) Error() string {
 	return fmt.Sprintf("internal error on field %q: %v", e.Field, e.Err)
 }
-
-func (e InternalError) Unwrap() error { return e.Err }
 
 type ValidationError struct {
 	Field string
