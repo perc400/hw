@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -73,7 +74,7 @@ func TestValidate(t *testing.T) {
 			in: ServerError{
 				Code: 504,
 			},
-			expectedErr: ErrInvalidValidatorParam,
+			expectedErr: strconv.ErrSyntax,
 		},
 		{
 			in: Role{
@@ -186,6 +187,7 @@ func checkValidationResult(t *testing.T, in interface{}, expectedErr error) {
 		if !errors.Is(iErr.Err, expectedErr) {
 			t.Fatalf("expected internal error %v, got %v", expectedErr, iErr.Err)
 		}
+		fmt.Println(err)
 		return
 	}
 
