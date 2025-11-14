@@ -1,0 +1,16 @@
+goos: linux
+goarch: amd64
+pkg: github.com/perc400/hw/hw10_program_optimization
+cpu: 13th Gen Intel(R) Core(TM) i5-1340P
+BenchmarkGetDomainStat-16    	       9	 122555273 ns/op	13625767 B/op	  712075 allocs/op
+BenchmarkGetDomainStat-16    	       9	 121485245 ns/op	13625952 B/op	  712075 allocs/op
+BenchmarkGetDomainStat-16    	       9	 171514326 ns/op	13625767 B/op	  712074 allocs/op
+BenchmarkGetDomainStat-16    	       5	 216599057 ns/op	13630025 B/op	  712075 allocs/op
+BenchmarkGetDomainStat-16    	       6	 185491235 ns/op	13628297 B/op	  712074 allocs/op
+BenchmarkGetDomainStat-16    	       6	 176896596 ns/op	13621057 B/op	  712074 allocs/op
+BenchmarkGetDomainStat-16    	       6	 201401757 ns/op	13621212 B/op	  712074 allocs/op
+BenchmarkGetDomainStat-16    	       6	 200078035 ns/op	13628606 B/op	  712076 allocs/op
+BenchmarkGetDomainStat-16    	       4	 260893566 ns/op	13621330 B/op	  712074 allocs/op
+BenchmarkGetDomainStat-16    	       5	 203649788 ns/op	13630499 B/op	  712077 allocs/op
+PASS
+ok  	github.com/perc400/hw/hw10_program_optimization	16.697s
