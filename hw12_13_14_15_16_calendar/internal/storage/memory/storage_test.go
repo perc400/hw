@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage"
+	"github.com/google/uuid"                                        //nolint:depguard
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,11 +15,8 @@ func TestStorage(t *testing.T) {
 	t.Run("create_and_lists", func(t *testing.T) {
 		moscowLoc, err := time.LoadLocation("Europe/Moscow")
 		require.NoError(t, err)
-
 		ctx := context.TODO()
-
 		st := New()
-
 		event := storage.Event{
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 22, 0, 0, 44, 0, moscowLoc),
@@ -44,11 +41,8 @@ func TestStorage(t *testing.T) {
 	t.Run("update_delete_events", func(t *testing.T) {
 		moscowLoc, err := time.LoadLocation("Europe/Moscow")
 		require.NoError(t, err)
-
 		ctx := context.TODO()
-
 		st := New()
-
 		event := storage.Event{
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 22, 0, 33, 44, 0, moscowLoc),
@@ -61,7 +55,6 @@ func TestStorage(t *testing.T) {
 			Datetime: time.Date(2025, time.December, 23, 0, 33, 44, 0, moscowLoc),
 			Duration: 4 * 24 * time.Hour,
 		}
-
 		err = st.Update(ctx, event.ID, updatedEvent)
 		require.NoError(t, err)
 
@@ -72,14 +65,12 @@ func TestStorage(t *testing.T) {
 				Duration: 4 * 24 * time.Hour,
 			},
 		}
-
 		actualListDay, err := st.ListDay(ctx, time.Date(2025, time.December, 23, 5, 33, 44, 0, moscowLoc))
 		require.NoError(t, err)
 		require.Equal(t, expectedListDay, actualListDay)
 
 		err = st.Delete(ctx, actualListDay[0].ID)
 		require.NoError(t, err)
-
 		newActualListDay, err := st.ListDay(ctx, time.Date(2025, time.December, 23, 5, 33, 44, 0, moscowLoc))
 		require.NoError(t, err)
 		require.Empty(t, newActualListDay)
@@ -88,11 +79,8 @@ func TestStorage(t *testing.T) {
 	t.Run("delete_nonexistent_event", func(t *testing.T) {
 		moscowLoc, err := time.LoadLocation("Europe/Moscow")
 		require.NoError(t, err)
-
 		ctx := context.TODO()
-
 		st := New()
-
 		event := storage.Event{
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 22, 0, 33, 44, 0, moscowLoc),
@@ -100,7 +88,6 @@ func TestStorage(t *testing.T) {
 		}
 		err = st.Create(ctx, event)
 		require.NoError(t, err)
-
 		err = st.Delete(ctx, uuid.New().String())
 		require.ErrorIs(t, err, storage.ErrEventNotFound)
 	})
@@ -108,11 +95,8 @@ func TestStorage(t *testing.T) {
 	t.Run("overlaps", func(t *testing.T) {
 		moscowLoc, err := time.LoadLocation("Europe/Moscow")
 		require.NoError(t, err)
-
 		ctx := context.TODO()
-
 		st := New()
-
 		e1 := storage.Event{
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 22, 0, 33, 44, 0, moscowLoc),
@@ -148,10 +132,8 @@ func TestStorage(t *testing.T) {
 	t.Run("concurrent_create", func(t *testing.T) {
 		ctx := context.TODO()
 		st := New()
-
 		var wg sync.WaitGroup
 		workers := 100
-
 		start := time.Now()
 
 		for i := 0; i < workers; i++ {

@@ -13,10 +13,12 @@ type Logger interface { // TODO
 type Storage interface { // TODO
 }
 
+//nolint:revive
 func New(logger Logger, storage Storage) *App {
 	return &App{}
 }
 
+//nolint:revive
 func (a *App) CreateEvent(ctx context.Context, id, title string) error {
 	// TODO
 	return nil

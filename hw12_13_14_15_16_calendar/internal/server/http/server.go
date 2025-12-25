@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"time"
 )
 
 type Server struct {
@@ -21,6 +22,7 @@ type Logger interface {
 type Application interface { // TODO
 }
 
+//nolint:revive
 func NewServer(logger Logger, app Application, host string, port string) *Server {
 	mux := http.NewServeMux()
 
@@ -41,8 +43,9 @@ func NewServer(logger Logger, app Application, host string, port string) *Server
 	return &Server{
 		logger: logger,
 		server: &http.Server{
-			Addr:    net.JoinHostPort(host, port),
-			Handler: handler,
+			Addr:              net.JoinHostPort(host, port),
+			Handler:           handler,
+			ReadHeaderTimeout: 5 * time.Second, // G112: Potential Slowloris Attack
 		},
 	}
 }

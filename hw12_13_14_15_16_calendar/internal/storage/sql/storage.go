@@ -6,9 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jmoiron/sqlx"
-	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage"
+	"github.com/jackc/pgx/v5/pgconn"                                //nolint:depguard
+	"github.com/jmoiron/sqlx"                                       //nolint:depguard
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard
 )
 
 type Storage struct {
@@ -48,7 +48,7 @@ func isUniqueViolation(err error) bool {
 }
 
 func (s *Storage) Create(ctx context.Context, event storage.Event) error {
-	overlapQuery := `
+	const overlapQuery = `
 	SELECT 1
 	FROM events
 	WHERE user_id = $1
@@ -67,11 +67,11 @@ func (s *Storage) Create(ctx context.Context, event storage.Event) error {
 	if err == nil {
 		return storage.ErrDateBusy
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 
-	insertQuery := `
+	const insertQuery = `
 	INSERT INTO events (
 		id, title, datetime, duration, description, user_id, notification_delay
 	)
@@ -92,7 +92,7 @@ func (s *Storage) Create(ctx context.Context, event storage.Event) error {
 }
 
 func (s *Storage) Update(ctx context.Context, eventID string, event storage.Event) error {
-	overlapQuery := `
+	const overlapQuery = `
 	SELECT 1
 	FROM events
 	WHERE user_id = $1
@@ -113,12 +113,12 @@ func (s *Storage) Update(ctx context.Context, eventID string, event storage.Even
 	if err == nil {
 		return storage.ErrDateBusy
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 
 	event.ID = eventID
-	updateQuery := `
+	const updateQuery = `
 	UPDATE events
 	SET
 		title = :title,
@@ -148,7 +148,7 @@ func (s *Storage) Update(ctx context.Context, eventID string, event storage.Even
 }
 
 func (s *Storage) Delete(ctx context.Context, eventID string) error {
-	deleteQuery := `
+	const deleteQuery = `
 	DELETE FROM events WHERE id = $1;
 	`
 
@@ -179,7 +179,7 @@ func (s *Storage) ListDay(ctx context.Context, date time.Time) ([]storage.Event,
 	)
 	dayEnd := dayStart.AddDate(0, 0, 1)
 
-	query := `
+	const query = `
 	SELECT *
 	FROM events
 	WHERE datetime < $1
@@ -201,7 +201,7 @@ func (s *Storage) ListWeek(ctx context.Context, date time.Time) ([]storage.Event
 	weekStart := date.Truncate(24 * time.Hour)
 	weekEnd := weekStart.AddDate(0, 0, 7)
 
-	query := `
+	const query = `
 	SELECT *
 	FROM events
 	WHERE datetime < $1
@@ -227,7 +227,7 @@ func (s *Storage) ListMonth(ctx context.Context, date time.Time) ([]storage.Even
 	)
 	monthEnd := monthStart.AddDate(0, 1, 0)
 
-	query := `
+	const query = `
 	SELECT *
 	FROM events
 	WHERE datetime < $1

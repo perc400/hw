@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/app"
-	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/http"
-	memorystorage "github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/app"                          //nolint:depguard
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/logger"                       //nolint:depguard
+	internalhttp "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/http"     //nolint:depguard
+	memorystorage "github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage/memory" //nolint:depguard
 )
 
 var configFile string

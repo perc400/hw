@@ -5,12 +5,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage"
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard
 )
 
 type Storage struct {
 	events map[string]storage.Event
-	mu     sync.RWMutex //nolint:unused
+	mu     sync.RWMutex
 }
 
 func New() *Storage {
@@ -31,6 +31,7 @@ func (s *Storage) Create(ctx context.Context, event storage.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	_ = ctx
 	if _, exists := s.events[event.ID]; exists {
 		return storage.ErrEventAlreadyExists
 	}
@@ -53,6 +54,7 @@ func (s *Storage) Update(ctx context.Context, eventID string, event storage.Even
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	_ = ctx
 	if _, exists := s.events[eventID]; !exists {
 		return storage.ErrEventNotFound
 	}
@@ -80,6 +82,7 @@ func (s *Storage) Delete(ctx context.Context, eventID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	_ = ctx
 	if _, exists := s.events[eventID]; !exists {
 		return storage.ErrEventNotFound
 	}
@@ -92,6 +95,7 @@ func (s *Storage) ListDay(ctx context.Context, date time.Time) ([]storage.Event,
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	_ = ctx
 	dayStart := time.Date(
 		date.Year(), date.Month(), date.Day(),
 		0, 0, 0, 0,
@@ -116,6 +120,7 @@ func (s *Storage) ListWeek(ctx context.Context, date time.Time) ([]storage.Event
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	_ = ctx
 	weekStart := date.Truncate(24 * time.Hour)
 
 	listWeek := make([]storage.Event, 0, len(s.events))
@@ -136,6 +141,7 @@ func (s *Storage) ListMonth(ctx context.Context, date time.Time) ([]storage.Even
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	_ = ctx
 	monthStart := time.Date(
 		date.Year(), date.Month(), 1,
 		0, 0, 0, 0,
