@@ -3,21 +3,22 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/app"
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/server/http"
-	memorystorage "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/app"
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/logger"
+	internalhttp "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/http"
+	memorystorage "github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage/memory"
 )
 
 var configFile string
 
 func init() {
-	flag.StringVar(&configFile, "config", "/etc/calendar/config.toml", "Path to configuration file")
+	flag.StringVar(&configFile, "config", "/etc/calendar/config.yaml", "Path to configuration file")
 }
 
 func main() {
@@ -28,13 +29,22 @@ func main() {
 		return
 	}
 
-	config := NewConfig()
-	logg := logger.New(config.Logger.Level)
+	cfg, err := NewConfig(configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to unmarshal configuration: %v", err)
+		os.Exit(1)
+	}
+
+	logg, err := logger.New(cfg.Logger.Level)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to init logger: %v", err)
+		os.Exit(1)
+	}
 
 	storage := memorystorage.New()
 	calendar := app.New(logg, storage)
 
-	server := internalhttp.NewServer(logg, calendar)
+	server := internalhttp.NewServer(logg, calendar, cfg.Server.Host, cfg.Server.Port)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -43,19 +53,18 @@ func main() {
 	go func() {
 		<-ctx.Done()
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+		ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer cancel()
 
-		if err := server.Stop(ctx); err != nil {
+		if err := server.Stop(ctxShutdown); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
 	}()
 
 	logg.Info("calendar is running...")
 
-	if err := server.Start(ctx); err != nil {
+	if err := server.Start(); err != nil {
 		logg.Error("failed to start http server: " + err.Error())
-		cancel()
 		os.Exit(1) //nolint:gocritic
 	}
 }
