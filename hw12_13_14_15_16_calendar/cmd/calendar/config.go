@@ -17,9 +17,18 @@ type LoggerConf struct {
 	Level string `yaml:"level"`
 }
 
-type ServerConf struct {
+type HTTPServer struct {
 	Host string `yaml:"host"`
 	Port string `yaml:"port"`
+}
+
+type GRPCServer struct {
+	Port string `yaml:"port"`
+}
+
+type ServerConf struct {
+	HTTPServer `yaml:"http"`
+	GRPCServer `yaml:"grpc"`
 }
 
 type StorageConf struct {

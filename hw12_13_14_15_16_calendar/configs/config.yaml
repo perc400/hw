@@ -2,8 +2,11 @@ logger:
   level: "INFO"
 
 server:
-  host: "127.0.0.1"
-  port: "8080"
+  http:
+    host: "127.0.0.1"
+    port: "8080"
+  grpc:
+    port: "49999"
 
 storage:
   type: "memory" # or "sql"

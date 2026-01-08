@@ -11,6 +11,7 @@ import (
 
 	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/app"                          //nolint:depguard
 	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/logger"                       //nolint:depguard
+	internalgrpc "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/grpc"     //nolint:depguard
 	internalhttp "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/http"     //nolint:depguard
 	memorystorage "github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage/memory" //nolint:depguard
 )
@@ -44,7 +45,8 @@ func main() {
 	storage := memorystorage.New()
 	calendar := app.New(logg, storage)
 
-	server := internalhttp.NewServer(logg, calendar, cfg.Server.Host, cfg.Server.Port)
+	httpServer := internalhttp.NewServer(logg, calendar, cfg.Server.HTTPServer.Host, cfg.Server.HTTPServer.Port)
+	grpcServer := internalgrpc.NewServer(logg, calendar)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -56,14 +58,21 @@ func main() {
 		ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer cancel()
 
-		if err := server.Stop(ctxShutdown); err != nil {
+		if err := httpServer.Stop(ctxShutdown); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
+		grpcServer.Stop()
 	}()
 
 	logg.Info("calendar is running...")
 
-	if err := server.Start(); err != nil {
+	go func() {
+		if err := grpcServer.Start(cfg.Server.GRPCServer.Port); err != nil {
+			logg.Error("failed to serve grpc server: " + err.Error())
+		}
+	}()
+
+	if err := httpServer.Start(); err != nil {
 		logg.Error("failed to start http server: " + err.Error())
 		os.Exit(1) //nolint:gocritic
 	}

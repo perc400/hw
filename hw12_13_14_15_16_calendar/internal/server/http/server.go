@@ -5,6 +5,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard
 )
 
 type Server struct {
@@ -19,24 +21,23 @@ type Logger interface {
 	Debug(msg string)
 }
 
-type Application interface { // TODO
+type Application interface {
+	CreateEvent(ctx context.Context, event storage.Event) error
+	UpdateEvent(ctx context.Context, eventID string, event storage.Event) error
+	DeleteEvent(ctx context.Context, userID uint64, eventID string) error
+	ListDay(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error)
+	ListWeek(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error)
+	ListMonth(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error)
 }
 
-//nolint:revive
 func NewServer(logger Logger, app Application, host string, port string) *Server {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte("hello"))
-		if err != nil {
-			logger.Error("failed to write response" + err.Error())
-		}
-	})
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.NotFound(w, r)
-	})
+	handlers := NewHandler(app, logger)
+	mux.HandleFunc("/events", handlers.events)
+	mux.HandleFunc("/events/day", handlers.listDayEvents)
+	mux.HandleFunc("/events/day", handlers.listWeekEvents)
+	mux.HandleFunc("/events/day", handlers.listMonthEvents)
 
 	handler := loggingMiddleware(logger, mux)
 
@@ -65,5 +66,3 @@ func (s *Server) Stop(ctx context.Context) error {
 	s.logger.Info("Shutting down server")
 	return s.server.Shutdown(ctx)
 }
-
-// TODO

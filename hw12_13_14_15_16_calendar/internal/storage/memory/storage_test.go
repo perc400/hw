@@ -21,19 +21,20 @@ func TestStorage(t *testing.T) {
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 22, 0, 0, 44, 0, moscowLoc),
 			Duration: 7 * 24 * time.Hour,
+			UserID:   32,
 		}
 		err = st.Create(ctx, event)
 		require.NoError(t, err)
 
 		expectedListDay := []storage.Event{}
-		actualListDay, err := st.ListDay(ctx, time.Date(2025, time.December, 30, 1, 33, 44, 0, moscowLoc))
+		actualListDay, err := st.ListDay(ctx, 32, time.Date(2025, time.December, 30, 1, 33, 44, 0, moscowLoc))
 		require.NoError(t, err)
 		require.Equal(t, expectedListDay, actualListDay)
 
 		expectedListWeek := []storage.Event{
 			event,
 		}
-		actualListWeek, err := st.ListWeek(ctx, time.Date(2025, time.December, 20, 1, 33, 44, 0, moscowLoc))
+		actualListWeek, err := st.ListWeek(ctx, 32, time.Date(2025, time.December, 20, 1, 33, 44, 0, moscowLoc))
 		require.NoError(t, err)
 		require.Equal(t, expectedListWeek, actualListWeek)
 	})
@@ -47,6 +48,7 @@ func TestStorage(t *testing.T) {
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 22, 0, 33, 44, 0, moscowLoc),
 			Duration: 7 * 24 * time.Hour,
+			UserID:   33,
 		}
 		err = st.Create(ctx, event)
 		require.NoError(t, err)
@@ -54,24 +56,25 @@ func TestStorage(t *testing.T) {
 		updatedEvent := storage.Event{
 			Datetime: time.Date(2025, time.December, 23, 0, 33, 44, 0, moscowLoc),
 			Duration: 4 * 24 * time.Hour,
+			UserID:   33,
 		}
 		err = st.Update(ctx, event.ID, updatedEvent)
 		require.NoError(t, err)
-
 		expectedListDay := []storage.Event{
 			{
 				ID:       event.ID,
 				Datetime: time.Date(2025, time.December, 23, 0, 33, 44, 0, moscowLoc),
 				Duration: 4 * 24 * time.Hour,
+				UserID:   33,
 			},
 		}
-		actualListDay, err := st.ListDay(ctx, time.Date(2025, time.December, 23, 5, 33, 44, 0, moscowLoc))
+		actualListDay, err := st.ListDay(ctx, 33, time.Date(2025, time.December, 23, 5, 33, 44, 0, moscowLoc))
 		require.NoError(t, err)
 		require.Equal(t, expectedListDay, actualListDay)
 
-		err = st.Delete(ctx, actualListDay[0].ID)
+		err = st.Delete(ctx, 33, actualListDay[0].ID)
 		require.NoError(t, err)
-		newActualListDay, err := st.ListDay(ctx, time.Date(2025, time.December, 23, 5, 33, 44, 0, moscowLoc))
+		newActualListDay, err := st.ListDay(ctx, 33, time.Date(2025, time.December, 23, 5, 33, 44, 0, moscowLoc))
 		require.NoError(t, err)
 		require.Empty(t, newActualListDay)
 	})
@@ -85,10 +88,11 @@ func TestStorage(t *testing.T) {
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 22, 0, 33, 44, 0, moscowLoc),
 			Duration: 7 * 24 * time.Hour,
+			UserID:   38,
 		}
 		err = st.Create(ctx, event)
 		require.NoError(t, err)
-		err = st.Delete(ctx, uuid.New().String())
+		err = st.Delete(ctx, 38, uuid.New().String())
 		require.ErrorIs(t, err, storage.ErrEventNotFound)
 	})
 
@@ -104,7 +108,6 @@ func TestStorage(t *testing.T) {
 		}
 		err = st.Create(ctx, e1)
 		require.NoError(t, err)
-
 		e2 := storage.Event{
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 23, 0, 33, 44, 0, moscowLoc),
@@ -112,7 +115,6 @@ func TestStorage(t *testing.T) {
 		}
 		err = st.Create(ctx, e2)
 		require.ErrorIs(t, err, storage.ErrDateBusy)
-
 		e3 := storage.Event{
 			ID:       uuid.New().String(),
 			Datetime: time.Date(2025, time.December, 29, 1, 33, 44, 0, moscowLoc),
@@ -135,13 +137,11 @@ func TestStorage(t *testing.T) {
 		var wg sync.WaitGroup
 		workers := 100
 		start := time.Now()
-
 		for i := 0; i < workers; i++ {
 			wg.Add(1)
 
 			go func() {
 				defer wg.Done()
-
 				e := storage.Event{
 					ID:       uuid.New().String(),
 					UserID:   1,
@@ -153,10 +153,9 @@ func TestStorage(t *testing.T) {
 				require.NoError(t, err)
 			}()
 		}
-
 		wg.Wait()
 
-		events, err := st.ListWeek(context.TODO(), start)
+		events, err := st.ListWeek(context.TODO(), 1, start)
 		require.NoError(t, err)
 		require.Len(t, events, workers)
 	})
