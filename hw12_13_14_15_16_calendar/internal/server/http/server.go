@@ -36,8 +36,8 @@ func NewServer(logger Logger, app Application, host string, port string) *Server
 	handlers := NewHandler(app, logger)
 	mux.HandleFunc("/events", handlers.events)
 	mux.HandleFunc("/events/day", handlers.listDayEvents)
-	mux.HandleFunc("/events/day", handlers.listWeekEvents)
-	mux.HandleFunc("/events/day", handlers.listMonthEvents)
+	mux.HandleFunc("/events/week", handlers.listWeekEvents)
+	mux.HandleFunc("/events/month", handlers.listMonthEvents)
 
 	handler := loggingMiddleware(logger, mux)
 
@@ -49,6 +49,18 @@ func NewServer(logger Logger, app Application, host string, port string) *Server
 			ReadHeaderTimeout: 5 * time.Second, // G112: Potential Slowloris Attack
 		},
 	}
+}
+
+func NewHandlerForTest(logger Logger, app Application) http.Handler {
+	mux := http.NewServeMux()
+
+	handlers := NewHandler(app, logger)
+	mux.HandleFunc("/events", handlers.events)
+	mux.HandleFunc("/events/day", handlers.listDayEvents)
+	mux.HandleFunc("/events/week", handlers.listWeekEvents)
+	mux.HandleFunc("/events/month", handlers.listMonthEvents)
+
+	return loggingMiddleware(logger, mux)
 }
 
 func (s *Server) Start() error {

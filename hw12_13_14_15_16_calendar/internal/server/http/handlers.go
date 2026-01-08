@@ -207,7 +207,9 @@ func (h *Handlers) listDayEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(resp)
-	h.logger.Warn("failed to write response with error " + err.Error())
+	if err != nil {
+		h.logger.Warn("failed to write response with error " + err.Error())
+	}
 }
 
 //nolint:dupl
@@ -256,7 +258,9 @@ func (h *Handlers) listWeekEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(resp)
-	h.logger.Warn("failed to write response with error " + err.Error())
+	if err != nil {
+		h.logger.Warn("failed to write response with error " + err.Error())
+	}
 }
 
 //nolint:dupl
@@ -305,5 +309,7 @@ func (h *Handlers) listMonthEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(resp)
-	h.logger.Warn("failed to write response with error " + err.Error())
+	if err != nil {
+		h.logger.Warn("failed to write response with error " + err.Error())
+	}
 }
