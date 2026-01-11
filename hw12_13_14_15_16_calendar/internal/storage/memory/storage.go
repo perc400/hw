@@ -78,7 +78,7 @@ func (s *Storage) Update(ctx context.Context, eventID string, event storage.Even
 	return nil
 }
 
-func (s *Storage) Delete(ctx context.Context, eventID string) error {
+func (s *Storage) Delete(ctx context.Context, userID uint64, eventID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -87,11 +87,13 @@ func (s *Storage) Delete(ctx context.Context, eventID string) error {
 		return storage.ErrEventNotFound
 	}
 
-	delete(s.events, eventID)
+	if s.events[eventID].UserID == userID {
+		delete(s.events, eventID)
+	}
 	return nil
 }
 
-func (s *Storage) ListDay(ctx context.Context, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListDay(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -106,17 +108,19 @@ func (s *Storage) ListDay(ctx context.Context, date time.Time) ([]storage.Event,
 	listDay := make([]storage.Event, 0, len(s.events))
 
 	for _, e := range s.events {
-		eventEndDate := e.Datetime.Add(e.Duration)
+		if e.UserID == userID {
+			eventEndDate := e.Datetime.Add(e.Duration)
 
-		if e.Datetime.Before(dayEnd) && eventEndDate.After(dayStart) {
-			listDay = append(listDay, e)
+			if e.Datetime.Before(dayEnd) && eventEndDate.After(dayStart) {
+				listDay = append(listDay, e)
+			}
 		}
 	}
 
 	return listDay, nil
 }
 
-func (s *Storage) ListWeek(ctx context.Context, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListWeek(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -126,18 +130,20 @@ func (s *Storage) ListWeek(ctx context.Context, date time.Time) ([]storage.Event
 	listWeek := make([]storage.Event, 0, len(s.events))
 
 	for _, e := range s.events {
-		eventEndDate := e.Datetime.Add(e.Duration)
-		weekEnd := weekStart.AddDate(0, 0, 7)
+		if e.UserID == userID {
+			eventEndDate := e.Datetime.Add(e.Duration)
+			weekEnd := weekStart.AddDate(0, 0, 7)
 
-		if e.Datetime.Before(weekEnd) && eventEndDate.After(weekStart) {
-			listWeek = append(listWeek, e)
+			if e.Datetime.Before(weekEnd) && eventEndDate.After(weekStart) {
+				listWeek = append(listWeek, e)
+			}
 		}
 	}
 
 	return listWeek, nil
 }
 
-func (s *Storage) ListMonth(ctx context.Context, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListMonth(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -151,11 +157,13 @@ func (s *Storage) ListMonth(ctx context.Context, date time.Time) ([]storage.Even
 	listMonth := make([]storage.Event, 0, len(s.events))
 
 	for _, e := range s.events {
-		eventEndDate := e.Datetime.Add(e.Duration)
-		monthEnd := monthStart.AddDate(0, 1, 0)
+		if e.UserID == userID {
+			eventEndDate := e.Datetime.Add(e.Duration)
+			monthEnd := monthStart.AddDate(0, 1, 0)
 
-		if e.Datetime.Before(monthEnd) && eventEndDate.After(monthStart) {
-			listMonth = append(listMonth, e)
+			if e.Datetime.Before(monthEnd) && eventEndDate.After(monthStart) {
+				listMonth = append(listMonth, e)
+			}
 		}
 	}
 

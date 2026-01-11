@@ -147,12 +147,12 @@ func (s *Storage) Update(ctx context.Context, eventID string, event storage.Even
 	return nil
 }
 
-func (s *Storage) Delete(ctx context.Context, eventID string) error {
+func (s *Storage) Delete(ctx context.Context, userID uint64, eventID string) error {
 	const deleteQuery = `
-	DELETE FROM events WHERE id = $1;
+	DELETE FROM events WHERE id = $1 AND user_id = $2;
 	`
 
-	res, err := s.db.ExecContext(ctx, deleteQuery, eventID)
+	res, err := s.db.ExecContext(ctx, deleteQuery, eventID, userID)
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (s *Storage) Delete(ctx context.Context, eventID string) error {
 	return nil
 }
 
-func (s *Storage) ListDay(ctx context.Context, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListDay(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
 	var events []storage.Event
 
 	dayStart := time.Date(
@@ -182,12 +182,12 @@ func (s *Storage) ListDay(ctx context.Context, date time.Time) ([]storage.Event,
 	const query = `
 	SELECT *
 	FROM events
-	WHERE datetime < $1
-		AND (datetime + duration * INTERVAL '1 second') > $2
+	WHERE user_id = $1 AND datetime < $2
+		AND (datetime + duration * INTERVAL '1 second') > $3
 	ORDER BY datetime;
 	`
 
-	err := s.db.SelectContext(ctx, &events, query, dayEnd, dayStart)
+	err := s.db.SelectContext(ctx, &events, query, userID, dayEnd, dayStart)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (s *Storage) ListDay(ctx context.Context, date time.Time) ([]storage.Event,
 	return events, nil
 }
 
-func (s *Storage) ListWeek(ctx context.Context, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListWeek(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
 	var events []storage.Event
 
 	weekStart := date.Truncate(24 * time.Hour)
@@ -204,12 +204,12 @@ func (s *Storage) ListWeek(ctx context.Context, date time.Time) ([]storage.Event
 	const query = `
 	SELECT *
 	FROM events
-	WHERE datetime < $1
-		AND (datetime + duration * INTERVAL '1 second') > $2
+	WHERE user_id = $1 AND datetime < $2
+		AND (datetime + duration * INTERVAL '1 second') > $3
 	ORDER BY datetime;
 	`
 
-	err := s.db.SelectContext(ctx, &events, query, weekEnd, weekStart)
+	err := s.db.SelectContext(ctx, &events, query, userID, weekEnd, weekStart)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (s *Storage) ListWeek(ctx context.Context, date time.Time) ([]storage.Event
 	return events, nil
 }
 
-func (s *Storage) ListMonth(ctx context.Context, date time.Time) ([]storage.Event, error) {
+func (s *Storage) ListMonth(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
 	var events []storage.Event
 
 	monthStart := time.Date(
@@ -230,12 +230,12 @@ func (s *Storage) ListMonth(ctx context.Context, date time.Time) ([]storage.Even
 	const query = `
 	SELECT *
 	FROM events
-	WHERE datetime < $1
-		AND (datetime + duration * INTERVAL '1 second') > $2
+	WHERE user_id = $1 AND datetime < $2
+		AND (datetime + duration * INTERVAL '1 second') > $3
 	ORDER BY datetime;
 	`
 
-	err := s.db.SelectContext(ctx, &events, query, monthEnd, monthStart)
+	err := s.db.SelectContext(ctx, &events, query, userID, monthEnd, monthStart)
 	if err != nil {
 		return nil, err
 	}
