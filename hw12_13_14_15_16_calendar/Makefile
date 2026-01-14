@@ -1,11 +1,14 @@
-BIN := "./bin/calendar"
+BIN := "./bin"
+BINARIES := calendar calendar_scheduler calendar_sender
 DOCKER_IMG="calendar:develop"
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 build:
-	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
+	for bin in $(BINARIES); do \
+		go build -v -o $(BIN)/$$bin -ldflags "$(LDFLAGS)" ./cmd/$$bin; \
+	done
 
 run: build
 	$(BIN) -config ./configs/config.yaml

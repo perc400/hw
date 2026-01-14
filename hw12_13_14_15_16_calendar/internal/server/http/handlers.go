@@ -44,6 +44,23 @@ func extractUserID(r *http.Request, logg Logger) (uint64, error) {
 	return strconv.ParseUint(userID, 10, 64)
 }
 
+func toEventResponses(events []storage.Event) []EventResponse {
+	resp := make([]EventResponse, 0, len(events))
+
+	for _, e := range events {
+		resp = append(resp, EventResponse{
+			ID:                e.ID,
+			Title:             e.Title,
+			Datetime:          e.Datetime,
+			Duration:          int64(e.Duration.Seconds()),
+			Description:       e.Description,
+			UserID:            e.UserID,
+			NotificationDelay: int64(e.NotificationDelay.Seconds()),
+		})
+	}
+	return resp
+}
+
 func (h *Handlers) createEvent(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -197,7 +214,9 @@ func (h *Handlers) listDayEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(events)
+	respEvents := toEventResponses(events)
+
+	resp, err := json.Marshal(respEvents)
 	if err != nil {
 		h.logger.Warn("failed to marshal response with error " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -248,7 +267,9 @@ func (h *Handlers) listWeekEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(events)
+	respEvents := toEventResponses(events)
+
+	resp, err := json.Marshal(respEvents)
 	if err != nil {
 		h.logger.Warn("failed to marshal response with error " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -299,7 +320,9 @@ func (h *Handlers) listMonthEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(events)
+	respEvents := toEventResponses(events)
+
+	resp, err := json.Marshal(respEvents)
 	if err != nil {
 		h.logger.Warn("failed to marshal response with error " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
