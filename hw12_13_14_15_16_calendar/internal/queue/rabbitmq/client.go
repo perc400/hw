@@ -2,6 +2,8 @@ package rabbitmq
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/queue" //nolint:depguard
 	"github.com/streadway/amqp"                                   //nolint:depguard
@@ -117,24 +119,22 @@ func (c *Client) Consume(ctx context.Context, handler queue.MessageHandler) erro
 		return err
 	}
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				c.logger.Info("RabbitMQ consumer stopped")
-				return
-			case d, ok := <-deliveries:
-				if !ok {
-					return
-				}
+	for {
+		select {
+		case <-ctx.Done():
+			c.logger.Info("RabbitMQ consumer stopped")
+			return nil
+		case d, ok := <-deliveries:
+			if !ok {
+				return errors.New("deliveries channel closed")
+			}
 
-				err := handler(ctx, queue.Message{Body: d.Body})
-				if err != nil {
-					c.logger.Error("handler error: " + err.Error())
-				}
+			msgCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			err := handler(msgCtx, queue.Message{Body: d.Body})
+			cancel()
+			if err != nil {
+				c.logger.Error("handler error: " + err.Error())
 			}
 		}
-	}()
-
-	return nil
+	}
 }

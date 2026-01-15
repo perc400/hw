@@ -66,34 +66,38 @@ func main() {
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
 
-	go func() {
-		<-ctx.Done()
-
-		ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
-
-		if err := httpServer.Stop(ctxShutdown); err != nil {
-			logg.Error("failed to stop http server: " + err.Error())
-		}
-		grpcServer.Stop()
-
-		if closer, ok := storage.(interface{ Close() error }); ok {
-			if err := closer.Close(); err != nil {
-				logg.Error("failed to close storage: " + err.Error())
-			}
-		}
-	}()
+	errCh := make(chan error, 2)
 
 	logg.Info("calendar is running...")
 
 	go func() {
-		if err := grpcServer.Start(net.JoinHostPort("", cfg.Server.GRPCServer.Port)); err != nil {
-			logg.Error("failed to serve grpc server: " + err.Error())
-		}
+		errCh <- grpcServer.Start(net.JoinHostPort("", cfg.Server.GRPCServer.Port))
 	}()
 
-	if err := httpServer.Start(); err != nil {
-		logg.Error("failed to start http server: " + err.Error())
-		os.Exit(1) //nolint:gocritic
+	go func() {
+		errCh <- httpServer.Start()
+	}()
+
+	select {
+	case <-ctx.Done():
+		logg.Info("shutdown signal received")
+	case err := <-errCh:
+		logg.Error("server error: " + err.Error())
+		cancel()
+	}
+
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	if err := httpServer.Stop(ctxShutdown); err != nil {
+		logg.Error("failed to stop http server: " + err.Error())
+	}
+
+	grpcServer.Stop()
+
+	if closer, ok := storage.(interface{ Close() error }); ok {
+		if err := closer.Close(); err != nil {
+			logg.Error("failed to close storage: " + err.Error())
+		}
 	}
 }

@@ -52,15 +52,18 @@ func main() {
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 
+	errCh := make(chan error, 1)
+
 	go func() {
-		if err := snd.Start(ctx); err != nil {
-			logg.Error("failed to start sender: " + err.Error())
-			stop()
-		}
+		errCh <- snd.Start(ctx)
 	}()
 
-	<-ctx.Done()
-	logg.Info("shutting down sender...")
+	select {
+	case <-ctx.Done():
+		logg.Info("shutting down...")
+	case err := <-errCh:
+		logg.Error("consumer error: " + err.Error())
+	}
 
 	if err := consumer.Close(); err != nil {
 		logg.Error("failed to close rabbitmq: " + err.Error())
