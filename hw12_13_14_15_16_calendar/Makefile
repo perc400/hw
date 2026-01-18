@@ -42,3 +42,15 @@ generate:
 		--go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		{}
+
+up:
+	docker compose -f ./docker-compose.yml up -d
+
+down:
+	docker compose -f ./docker-compose.yml down -v
+
+integration-tests:
+	docker compose -f ./docker-compose.integration.yml up -d
+	go test -race -tags=integration ./internal/integration/... || status=$$?; \
+	docker compose -f ./docker-compose.integration.yml down -v; \
+	exit $${status:-0}
