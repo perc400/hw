@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "calendar.fullname" . }}
+  labels:
+    app: {{ include "calendar.name" . }}
+spec:
+  replicas: {{ .Values.calendar.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "calendar.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "calendar.name" . }}
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z postgres 5432; do
+                echo "Waiting for postgres..."
+                sleep 2
+              done
+      containers:
+        - image: {{ .Values.calendar.image }}
+          name: {{ include "calendar.name" . }}
+          args: ["-config", "/opt/calendar/config.yaml"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.calendar.ports.http }}
+            - name: grpc
+              containerPort: {{ .Values.calendar.ports.grpc }}
+          volumeMounts:
+            - name: config
+              mountPath: /opt/calendar/config.yaml
+              subPath: config.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "calendar.fullname" . }}-config

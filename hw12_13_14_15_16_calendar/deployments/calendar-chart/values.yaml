@@ -1,0 +1,96 @@
+calendar:
+  image: localhost:32000/calendar:latest
+  replicas: 1
+  ports:
+    http: 8080
+    grpc: 49999
+  config: |
+    logger:
+      level: "INFO"
+
+    server:
+      http:
+        host: "0.0.0.0"
+        port: "8080"
+      grpc:
+        port: "49999"
+
+    storage:
+      type: "sql"
+
+    sql:
+      dsn: "postgres://calendar_user:calendar@postgres:5432/calendar?sslmode=disable"
+
+calendar_scheduler:
+  image: localhost:32000/calendar_scheduler:latest
+  replicas: 1
+  config: |
+    logger:
+      level: "INFO"
+
+    storage:
+      type: "sql"
+
+    sql:
+      dsn: "postgres://calendar_user:calendar@postgres:5432/calendar?sslmode=disable"
+
+    amqpClient:
+      url: "amqp://admin:admin@rabbitmq:5672/"
+      queue:
+        name: "notifications"
+      pollInterval: 60
+
+calendar_sender:
+  image: localhost:32000/calendar_sender:latest
+  replicas: 1
+  config: |
+    logger:
+      level: "INFO"
+
+    amqpClient:
+      url: "amqp://admin:admin@rabbitmq:5672/"
+      queue:
+        name: "notifications"
+
+postgres:
+  image: postgres:16.11
+  port: 5432
+  auth:
+    user: postgres
+    password: postgres
+    db: postgres
+  persistence:
+    size: 1Gi
+  initSql: |
+    CREATE USER calendar_user WITH ENCRYPTED PASSWORD 'calendar';
+    CREATE DATABASE calendar OWNER calendar_user;
+
+    \c calendar
+
+    CREATE SCHEMA calendar AUTHORIZATION calendar_user;
+    GRANT ALL ON SCHEMA calendar TO calendar_user;
+    ALTER ROLE calendar_user SET search_path = calendar, public;
+
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA calendar TO calendar_user;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA calendar TO calendar_user;
+
+rabbitmq:
+  image: rabbitmq:4.2.2-management
+  ports:
+    management: 15672
+    amqp: 5672
+  user: admin
+  pass: admin
+  persistence:
+    size: 1Gi
+
+goose:
+  image: gomicro/goose:3.26.0
+  driver: postgres
+  dbstring: "postgres://calendar_user:calendar@postgres:5432/calendar?sslmode=disable"
+
+ingress:
+  hosts:
+    http: calendar.local
+    grpc: grpc.calendar.local
+    rabbit: rabbit.local
