@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "goose.fullname" . }}
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z postgres 5432; do
+                echo "Waiting for postgres..."
+                sleep 2
+              done
+      containers:
+        - name: goose
+          image: {{ .Values.goose.image }}
+          env:
+            - name: GOOSE_DRIVER
+              value: {{ .Values.goose.driver }}
+            - name: GOOSE_MIGRATION_DIR
+              value: /migrations
+            - name: GOOSE_DBSTRING
+              value: {{ .Values.goose.dbstring }}
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+          command: ["sh", "-c", "goose up"]
+      volumes:
+        - name: migrations
+          configMap:
+            name: {{ include "goose.fullname" . }}-migrations

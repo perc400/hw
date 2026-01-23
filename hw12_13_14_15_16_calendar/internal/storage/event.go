@@ -6,13 +6,14 @@ import (
 )
 
 type Event struct {
-	ID                string
-	Title             string
-	Datetime          time.Time
-	Duration          time.Duration
-	Description       string
-	UserID            uint64
-	NotificationDelay time.Duration
+	ID                string        `db:"id"`
+	Title             string        `db:"title"`
+	Datetime          time.Time     `db:"datetime"`
+	Duration          time.Duration `db:"duration"`
+	Description       string        `db:"description"`
+	UserID            uint64        `db:"user_id"`
+	NotificationDelay time.Duration `db:"notification_delay"`
+	NotifiedAt        *time.Time    `db:"notified_at"`
 }
 
 var (

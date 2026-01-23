@@ -1,0 +1,103 @@
+services:
+  goose:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    container_name: "goose"
+    image: "gomicro/goose:3.26.0"
+    environment:
+      GOOSE_DRIVER: postgres
+      GOOSE_MIGRATION_DIR: /migrations
+      GOOSE_DBSTRING: "postgres://calendar_user:calendar@postgres:5432/calendar?sslmode=disable"
+    volumes:
+      - "./migrations:/migrations:ro"
+    command: goose up
+
+  postgres:
+    container_name: "postgresql"
+    image: "postgres:16.11"
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - "./init:/docker-entrypoint-initdb.d"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    container_name: "rabbitmq"
+    image: "rabbitmq:4.2.2-management"
+    restart: unless-stopped
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  calendar:
+    depends_on:
+      goose:
+        condition: service_completed_successfully
+    container_name: "calendar"
+    build:
+      context: .
+      dockerfile: build/calendar/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "49999:49999"
+    command:
+      - "-config"
+      - "/opt/calendar/config.yaml"
+    volumes:
+      - "./configs/config.yaml:/opt/calendar/config.yaml:ro"
+
+  calendar_scheduler:
+    depends_on:
+      goose:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    container_name: "calendar_scheduler"
+    build:
+      context: .
+      dockerfile: build/calendar_scheduler/Dockerfile
+    restart: unless-stopped
+    command:
+      - "-config"
+      - "/opt/calendar_scheduler/config.yaml"
+    volumes:
+      - "./configs/scheduler_config.yaml:/opt/calendar_scheduler/config.yaml:ro"
+
+  calendar_sender:
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    container_name: "calendar_sender"
+    build:
+      context: .
+      dockerfile: build/calendar_sender/Dockerfile
+    restart: unless-stopped
+    command:
+      - "-config"
+      - "/opt/calendar_sender/config.yaml"
+    volumes:
+      - "./configs/sender_config.yaml:/opt/calendar_sender/config.yaml:ro"
+
+networks:
+  default:
+    name: calendar_network
+    driver: bridge

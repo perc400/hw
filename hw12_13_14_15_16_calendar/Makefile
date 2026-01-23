@@ -1,11 +1,14 @@
-BIN := "./bin/calendar"
+BIN := "./bin"
+BINARIES := calendar calendar_scheduler calendar_sender
 DOCKER_IMG="calendar:develop"
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 build:
-	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
+	for bin in $(BINARIES); do \
+		go build -v -o $(BIN)/$$bin -ldflags "$(LDFLAGS)" ./cmd/$$bin; \
+	done
 
 run: build
 	$(BIN) -config ./configs/config.yaml
@@ -39,3 +42,15 @@ generate:
 		--go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		{}
+
+up:
+	docker compose -f ./docker-compose.yml up -d
+
+down:
+	docker compose -f ./docker-compose.yml down -v
+
+integration-tests:
+	docker compose -f ./docker-compose.integration.yml up -d
+	go test -race -tags=integration ./internal/integration/... || status=$$?; \
+	docker compose -f ./docker-compose.integration.yml down -v; \
+	exit $${status:-0}
