@@ -1,0 +1,14 @@
+logger:
+  level: "INFO"
+
+storage:
+  type: "sql" # or "memory"
+
+sql:
+  dsn: "postgres://calendar_user:calendar@postgres:5432/calendar?sslmode=disable"
+
+amqpClient:
+  url: "amqp://admin:admin@rabbitmq:5672/"
+  queue:
+    name: "notifications"
+  pollInterval: 1

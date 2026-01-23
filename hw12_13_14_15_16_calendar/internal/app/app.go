@@ -2,25 +2,71 @@ package app
 
 import (
 	"context"
+	"time"
+
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard
 )
 
-type App struct { // TODO
+type App struct {
+	logger  Logger
+	storage storage.Storage
 }
 
-type Logger interface { // TODO
+type Logger interface {
+	Error(msg string)
+	Warn(msg string)
+	Info(msg string)
+	Debug(msg string)
 }
 
-type Storage interface { // TODO
+func New(logger Logger, storage storage.Storage) *App {
+	return &App{
+		logger:  logger,
+		storage: storage,
+	}
 }
 
-func New(logger Logger, storage Storage) *App {
-	return &App{}
+func (a *App) CreateEvent(ctx context.Context, event storage.Event) error {
+	a.logger.Info("create event with ID " + event.ID)
+	return a.storage.Create(ctx, event)
 }
 
-func (a *App) CreateEvent(ctx context.Context, id, title string) error {
-	// TODO
-	return nil
-	// return a.storage.CreateEvent(storage.Event{ID: id, Title: title})
+func (a *App) UpdateEvent(ctx context.Context, eventID string, event storage.Event) error {
+	a.logger.Info("Update event with ID " + eventID)
+	return a.storage.Update(ctx, eventID, event)
 }
 
-// TODO
+func (a *App) DeleteEvent(ctx context.Context, userID uint64, eventID string) error {
+	a.logger.Info("Delete event with ID " + eventID)
+	return a.storage.Delete(ctx, userID, eventID)
+}
+
+func (a *App) ListDay(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
+	a.logger.Info("List events on " + date.String())
+	return a.storage.ListDay(ctx, userID, date)
+}
+
+func (a *App) ListWeek(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
+	a.logger.Info("List events on " + date.String())
+	return a.storage.ListWeek(ctx, userID, date)
+}
+
+func (a *App) ListMonth(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
+	a.logger.Info("List events on " + date.String())
+	return a.storage.ListMonth(ctx, userID, date)
+}
+
+func (a *App) MarkNotified(ctx context.Context, eventID string, now time.Time) error {
+	a.logger.Info("Mark event as notified on " + now.String())
+	return a.storage.MarkNotified(ctx, eventID, now)
+}
+
+func (a *App) ListEventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error) {
+	a.logger.Info("List events to notify on " + now.String())
+	return a.storage.ListEventsToNotify(ctx, now)
+}
+
+func (a *App) DeleteOldEvents(ctx context.Context, before time.Time) error {
+	a.logger.Info("Delete old events " + before.String())
+	return a.storage.DeleteOldEvents(ctx, before)
+}

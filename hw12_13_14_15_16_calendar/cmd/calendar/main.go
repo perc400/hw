@@ -3,21 +3,26 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/app"
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/server/http"
-	memorystorage "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/app"                          //nolint:depguard
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/logger"                       //nolint:depguard
+	internalgrpc "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/grpc"     //nolint:depguard
+	internalhttp "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/http"     //nolint:depguard
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage"                      //nolint:depguard
+	memorystorage "github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage/memory" //nolint:depguard
+	sqlstorage "github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage/sql"       //nolint:depguard
 )
 
 var configFile string
 
 func init() {
-	flag.StringVar(&configFile, "config", "/etc/calendar/config.toml", "Path to configuration file")
+	flag.StringVar(&configFile, "config", "/etc/calendar/config.yaml", "Path to configuration file")
 }
 
 func main() {
@@ -28,34 +33,71 @@ func main() {
 		return
 	}
 
-	config := NewConfig()
-	logg := logger.New(config.Logger.Level)
+	cfg, err := NewConfig(configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to unmarshal configuration: %v", err)
+		os.Exit(1)
+	}
 
-	storage := memorystorage.New()
+	logg, err := logger.New(cfg.Logger.Level)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to init logger: %v", err)
+		os.Exit(1)
+	}
+
+	var storage storage.Storage
+	switch cfg.Storage.Type {
+	case "memory":
+		storage = memorystorage.New()
+	case "sql":
+		storage, err = sqlstorage.New(cfg.SQL.DSN)
+		if err != nil {
+			logg.Error("failed to init sql storage: " + err.Error())
+			os.Exit(1)
+		}
+	}
+
 	calendar := app.New(logg, storage)
 
-	server := internalhttp.NewServer(logg, calendar)
+	httpServer := internalhttp.NewServer(logg, calendar, cfg.Server.HTTPServer.Host, cfg.Server.HTTPServer.Port)
+	grpcServer := internalgrpc.NewServer(logg, calendar)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
 
-	go func() {
-		<-ctx.Done()
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
-
-		if err := server.Stop(ctx); err != nil {
-			logg.Error("failed to stop http server: " + err.Error())
-		}
-	}()
+	errCh := make(chan error, 2)
 
 	logg.Info("calendar is running...")
 
-	if err := server.Start(ctx); err != nil {
-		logg.Error("failed to start http server: " + err.Error())
+	go func() {
+		errCh <- grpcServer.Start(net.JoinHostPort("", cfg.Server.GRPCServer.Port))
+	}()
+
+	go func() {
+		errCh <- httpServer.Start()
+	}()
+
+	select {
+	case <-ctx.Done():
+		logg.Info("shutdown signal received")
+	case err := <-errCh:
+		logg.Error("server error: " + err.Error())
 		cancel()
-		os.Exit(1) //nolint:gocritic
+	}
+
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+
+	if err := httpServer.Stop(ctxShutdown); err != nil {
+		logg.Error("failed to stop http server: " + err.Error())
+	}
+
+	grpcServer.Stop()
+
+	if closer, ok := storage.(interface{ Close() error }); ok {
+		if err := closer.Close(); err != nil {
+			logg.Error("failed to close storage: " + err.Error())
+		}
 	}
 }

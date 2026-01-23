@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+//go:generate protoc --proto_path=. \
+//  --go_out=. --go_opt=paths=source_relative \
+//  --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+//  event.proto
+
+import "google/protobuf/timestamp.proto";
+
+package event;
+
+option go_package = "github.com/perc400/hw/hw12_13_14_15_calendar/api/event;eventpb";
+
+// EventService provides calendar event management API.
+service EventService {
+  // CreateEvent creates a new calendar event.
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
+  // UpdateEvent updates an existing event.
+  rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse);
+  // DeleteEvent deletes an event.
+  rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
+  // ListDay returns events for a specific day.
+  rpc ListDay(ListDayRequest) returns (ListEventsResponse);
+  // ListWeek returns events for a specific week.
+  rpc ListWeek(ListWeekRequest) returns (ListEventsResponse);
+  // ListMonth returns events for a specific month.
+  rpc ListMonth(ListMonthRequest) returns (ListEventsResponse);
+}
+
+// The Event entity.
+message Event {
+  string id = 1;
+  string title = 2;
+  google.protobuf.Timestamp datetime = 3;
+  int64 duration = 4;
+  string description = 5;
+  uint64 user_id = 6;
+  int64 notification_delay = 7;
+}
+
+// Request to create an event.
+message CreateEventRequest {
+  Event event = 1;
+}
+
+// Response after requesting event creation.
+message CreateEventResponse {}
+
+// Request to update an event.
+message UpdateEventRequest {
+  Event event = 1;
+}
+
+// Response after requesting event update.
+message UpdateEventResponse {}
+
+// Request to delete an event.
+message DeleteEventRequest {
+  uint64 user_id = 1;
+  string event_id = 2;
+}
+
+// Response after requesting deleting the event.
+message DeleteEventResponse {}
+
+// Request to get a list of events on a specific day.
+message ListDayRequest {
+  uint64 user_id = 1;
+  google.protobuf.Timestamp date = 2;
+}
+
+// Request for a list of events for the week.
+message ListWeekRequest {
+  uint64 user_id = 1;
+  google.protobuf.Timestamp date = 2;
+}
+
+// Request for a list of events for the month.
+message ListMonthRequest {
+  uint64 user_id = 1;
+  google.protobuf.Timestamp date = 2;
+}
+
+// Response after requesting a list of events.
+message ListEventsResponse {
+  repeated Event events = 1;
+}
