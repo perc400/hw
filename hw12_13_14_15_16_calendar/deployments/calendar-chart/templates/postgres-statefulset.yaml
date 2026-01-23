@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "postgres.fullname" . }}
+spec:
+  serviceName: {{ include "postgres.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "postgres.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "postgres.name" . }}
+    spec:
+      containers:
+        - image: {{ .Values.postgres.image }}
+          name: {{ include "postgres.name" . }}
+          ports:
+            - name: pgsql
+              containerPort: {{ .Values.postgres.port }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.auth.user }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgres.auth.password }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.auth.db }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init
+          configMap:
+            name: {{ include "postgres.fullname" . }}-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.postgres.persistence.size }}
