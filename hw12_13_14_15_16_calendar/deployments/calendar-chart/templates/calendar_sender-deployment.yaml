@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "calendar_sender.fullname" . }}
+  labels:
+    app: {{ include "calendar_sender.name" . }}
+spec:
+  replicas: {{ .Values.calendar_sender.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "calendar_sender.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "calendar_sender.name" . }}
+    spec:
+      initContainers:
+        - name: wait-for-rabbitmq
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z rabbitmq 5672; do sleep 2; done
+      containers:
+        - image: {{ .Values.calendar_sender.image }}
+          name: {{ include "calendar_sender.name" . }}
+          args: ["-config", "/opt/calendar_sender/config.yaml"]
+          volumeMounts:
+            - name: config
+              mountPath: /opt/calendar_sender/config.yaml
+              subPath: config.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "calendar_sender.fullname" . }}-config
