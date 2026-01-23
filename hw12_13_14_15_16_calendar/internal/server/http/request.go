@@ -8,7 +8,7 @@ type CreateEventRequest struct {
 	Datetime          time.Time `json:"datetime"`
 	Duration          int64     `json:"duration"`
 	Description       string    `json:"description,omitempty"`
-	NotificationDelay int64     `json:"notificationDelay,omitempty"`
+	NotificationDelay int64     `json:"notification_delay,omitempty"` //nolint:tagliatelle
 }
 
 type UpdateEventRequest struct {
@@ -17,7 +17,7 @@ type UpdateEventRequest struct {
 	Datetime          time.Time `json:"datetime"`
 	Duration          int64     `json:"duration"`
 	Description       string    `json:"description,omitempty"`
-	NotificationDelay int64     `json:"notificationDelay,omitempty"`
+	NotificationDelay int64     `json:"notification_delay,omitempty"` //nolint:tagliatelle
 }
 
 type DeleteEventRequest struct {

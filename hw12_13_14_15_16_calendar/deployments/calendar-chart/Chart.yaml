@@ -1,0 +1,5 @@
+apiVersion: v2
+name: calendar-chart
+version: 0.1.0
+description: Calendar
+appVersion: "1.0.0"

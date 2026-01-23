@@ -6,25 +6,37 @@ import (
 	"errors"
 	"time"
 
+	_ "github.com/jackc/pgx/stdlib"                                 //nolint:revive,depguard,nolintlint
 	"github.com/jackc/pgx/v5/pgconn"                                //nolint:depguard
 	"github.com/jmoiron/sqlx"                                       //nolint:depguard
 	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage" //nolint:depguard
 )
 
+type dbEvent struct {
+	ID                string     `db:"id"`
+	Title             string     `db:"title"`
+	Datetime          time.Time  `db:"datetime"`
+	Duration          int64      `db:"duration"`
+	Description       string     `db:"description"`
+	UserID            uint64     `db:"user_id"`
+	NotificationDelay int64      `db:"notification_delay"`
+	NotifiedAt        *time.Time `db:"notified_at"`
+}
+
 type Storage struct {
 	db *sqlx.DB
 }
 
-func New(ctx context.Context, dsn string) (*Storage, error) {
+func New(dsn string) (*Storage, error) {
 	db, err := sqlx.Open("pgx", dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = db.PingContext(pingCtx)
+	err = db.PingContext(ctx)
 	if err != nil {
 		_ = db.Close()
 		return nil, err
@@ -37,6 +49,37 @@ func New(ctx context.Context, dsn string) (*Storage, error) {
 
 func (s *Storage) Close() error {
 	return s.db.Close()
+}
+
+func toDBEvent(e storage.Event) dbEvent {
+	return dbEvent{
+		ID:                e.ID,
+		Title:             e.Title,
+		Datetime:          e.Datetime,
+		Duration:          int64(e.Duration.Seconds()),
+		Description:       e.Description,
+		UserID:            e.UserID,
+		NotificationDelay: int64(e.NotificationDelay.Seconds()),
+		NotifiedAt:        e.NotifiedAt,
+	}
+}
+
+func toStorageEvents(dbEvents []dbEvent) []storage.Event {
+	events := make([]storage.Event, 0, len(dbEvents))
+	for _, dbEv := range dbEvents {
+		events = append(events, storage.Event{
+			ID:                dbEv.ID,
+			Title:             dbEv.Title,
+			Datetime:          dbEv.Datetime,
+			Duration:          time.Duration(dbEv.Duration) * time.Second,
+			Description:       dbEv.Description,
+			UserID:            dbEv.UserID,
+			NotificationDelay: time.Duration(dbEv.NotificationDelay) * time.Second,
+			NotifiedAt:        dbEv.NotifiedAt,
+		})
+	}
+
+	return events
 }
 
 func isUniqueViolation(err error) bool {
@@ -80,7 +123,9 @@ func (s *Storage) Create(ctx context.Context, event storage.Event) error {
 	);
 	`
 
-	_, err = s.db.NamedExecContext(ctx, insertQuery, event)
+	dbEv := toDBEvent(event)
+
+	_, err = s.db.NamedExecContext(ctx, insertQuery, dbEv)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return storage.ErrEventAlreadyExists
@@ -130,7 +175,9 @@ func (s *Storage) Update(ctx context.Context, eventID string, event storage.Even
 	WHERE id = :id;
 	`
 
-	res, err := s.db.NamedExecContext(ctx, updateQuery, event)
+	dbEv := toDBEvent(event)
+
+	res, err := s.db.NamedExecContext(ctx, updateQuery, dbEv)
 	if err != nil {
 		return err
 	}
@@ -170,7 +217,7 @@ func (s *Storage) Delete(ctx context.Context, userID uint64, eventID string) err
 }
 
 func (s *Storage) ListDay(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
-	var events []storage.Event
+	var dbEvents []dbEvent
 
 	dayStart := time.Date(
 		date.Year(), date.Month(), date.Day(),
@@ -187,16 +234,16 @@ func (s *Storage) ListDay(ctx context.Context, userID uint64, date time.Time) ([
 	ORDER BY datetime;
 	`
 
-	err := s.db.SelectContext(ctx, &events, query, userID, dayEnd, dayStart)
+	err := s.db.SelectContext(ctx, &dbEvents, query, userID, dayEnd, dayStart)
 	if err != nil {
 		return nil, err
 	}
 
-	return events, nil
+	return toStorageEvents(dbEvents), nil
 }
 
 func (s *Storage) ListWeek(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
-	var events []storage.Event
+	var dbEvents []dbEvent
 
 	weekStart := date.Truncate(24 * time.Hour)
 	weekEnd := weekStart.AddDate(0, 0, 7)
@@ -209,16 +256,16 @@ func (s *Storage) ListWeek(ctx context.Context, userID uint64, date time.Time) (
 	ORDER BY datetime;
 	`
 
-	err := s.db.SelectContext(ctx, &events, query, userID, weekEnd, weekStart)
+	err := s.db.SelectContext(ctx, &dbEvents, query, userID, weekEnd, weekStart)
 	if err != nil {
 		return nil, err
 	}
 
-	return events, nil
+	return toStorageEvents(dbEvents), nil
 }
 
 func (s *Storage) ListMonth(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
-	var events []storage.Event
+	var dbEvents []dbEvent
 
 	monthStart := time.Date(
 		date.Year(), date.Month(), 1,
@@ -235,10 +282,68 @@ func (s *Storage) ListMonth(ctx context.Context, userID uint64, date time.Time) 
 	ORDER BY datetime;
 	`
 
-	err := s.db.SelectContext(ctx, &events, query, userID, monthEnd, monthStart)
+	err := s.db.SelectContext(ctx, &dbEvents, query, userID, monthEnd, monthStart)
 	if err != nil {
 		return nil, err
 	}
 
-	return events, nil
+	return toStorageEvents(dbEvents), nil
+}
+
+func (s *Storage) MarkNotified(ctx context.Context, eventID string, now time.Time) error {
+	const query = `
+	UPDATE events
+	SET notified_at = $1
+	WHERE id = $2 AND (notified_at IS NULL)
+	`
+
+	res, err := s.db.ExecContext(ctx, query, now, eventID)
+	if err != nil {
+		return err
+	}
+
+	affectedRows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if affectedRows == 0 {
+		return nil
+	}
+
+	return nil
+}
+
+func (s *Storage) ListEventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error) {
+	var dbEvents []dbEvent
+
+	const query = `
+	SELECT *
+	FROM events
+	WHERE notification_delay > 0
+		AND notified_at IS NULL
+		AND datetime - (notification_delay * interval '1 second') <= $1
+		AND $1 < datetime
+	ORDER BY datetime;
+	`
+
+	err := s.db.SelectContext(ctx, &dbEvents, query, now)
+	if err != nil {
+		return nil, err
+	}
+
+	return toStorageEvents(dbEvents), nil
+}
+
+func (s *Storage) DeleteOldEvents(ctx context.Context, before time.Time) error {
+	const deleteQuery = `
+	DELETE FROM events WHERE datetime + (duration * INTERVAL '1 second') <= $1;
+	`
+
+	_, err := s.db.ExecContext(ctx, deleteQuery, before)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

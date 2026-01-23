@@ -12,4 +12,7 @@ type Storage interface {
 	ListDay(ctx context.Context, userID uint64, date time.Time) ([]Event, error)
 	ListWeek(ctx context.Context, userID uint64, date time.Time) ([]Event, error)
 	ListMonth(ctx context.Context, userID uint64, date time.Time) ([]Event, error)
+	MarkNotified(ctx context.Context, eventID string, now time.Time) error
+	ListEventsToNotify(ctx context.Context, now time.Time) ([]Event, error)
+	DeleteOldEvents(ctx context.Context, before time.Time) error
 }

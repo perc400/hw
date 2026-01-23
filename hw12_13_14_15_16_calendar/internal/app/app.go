@@ -42,16 +42,31 @@ func (a *App) DeleteEvent(ctx context.Context, userID uint64, eventID string) er
 }
 
 func (a *App) ListDay(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
-	a.logger.Info("List event on " + date.String())
+	a.logger.Info("List events on " + date.String())
 	return a.storage.ListDay(ctx, userID, date)
 }
 
 func (a *App) ListWeek(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
-	a.logger.Info("List event on " + date.String())
+	a.logger.Info("List events on " + date.String())
 	return a.storage.ListWeek(ctx, userID, date)
 }
 
 func (a *App) ListMonth(ctx context.Context, userID uint64, date time.Time) ([]storage.Event, error) {
-	a.logger.Info("List event on " + date.String())
+	a.logger.Info("List events on " + date.String())
 	return a.storage.ListMonth(ctx, userID, date)
+}
+
+func (a *App) MarkNotified(ctx context.Context, eventID string, now time.Time) error {
+	a.logger.Info("Mark event as notified on " + now.String())
+	return a.storage.MarkNotified(ctx, eventID, now)
+}
+
+func (a *App) ListEventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error) {
+	a.logger.Info("List events to notify on " + now.String())
+	return a.storage.ListEventsToNotify(ctx, now)
+}
+
+func (a *App) DeleteOldEvents(ctx context.Context, before time.Time) error {
+	a.logger.Info("Delete old events " + before.String())
+	return a.storage.DeleteOldEvents(ctx, before)
 }

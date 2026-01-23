@@ -1,0 +1,57 @@
+# HTTP calendar
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-calendar-http
+spec:
+  rules:
+    - host: {{ .Values.ingress.hosts.http }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "calendar.fullname" . }}
+                port:
+                  number: {{ .Values.calendar.ports.http }}
+
+---
+# gRPC calendar
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-calendar-grpc
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+spec:
+  rules:
+    - host: {{ .Values.ingress.hosts.grpc }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "calendar.fullname" . }}
+                port:
+                  number: {{ .Values.calendar.ports.grpc }}
+
+---
+# RabbitMQ Management UI
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-rabbitmq
+spec:
+  rules:
+    - host: {{ .Values.ingress.hosts.rabbit }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rabbitmq
+                port:
+                  number: 15672

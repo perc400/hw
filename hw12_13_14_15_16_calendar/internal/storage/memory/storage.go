@@ -169,3 +169,54 @@ func (s *Storage) ListMonth(ctx context.Context, userID uint64, date time.Time) 
 
 	return listMonth, nil
 }
+
+func (s *Storage) MarkNotified(ctx context.Context, eventID string, now time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_ = ctx
+
+	e, ok := s.events[eventID]
+	if !ok {
+		return nil
+	}
+
+	if e.NotifiedAt == nil {
+		e.NotifiedAt = &now
+		s.events[eventID] = e
+	}
+
+	return nil
+}
+
+func (s *Storage) ListEventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	_ = ctx
+
+	listToNotify := make([]storage.Event, 0, len(s.events))
+
+	for _, e := range s.events {
+		notifyTime := e.Datetime.Add(-e.NotificationDelay)
+		if e.NotificationDelay > 0 && !now.Before(notifyTime) {
+			listToNotify = append(listToNotify, e)
+		}
+	}
+
+	return listToNotify, nil
+}
+
+func (s *Storage) DeleteOldEvents(ctx context.Context, before time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_ = ctx
+	for _, e := range s.events {
+		eventEndDate := e.Datetime.Add(e.Duration)
+		if eventEndDate.Before(before) || eventEndDate.Equal(before) {
+			delete(s.events, e.ID)
+		}
+	}
+	return nil
+}

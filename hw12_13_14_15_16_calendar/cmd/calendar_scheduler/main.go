@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,8 +11,8 @@ import (
 
 	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/app"                          //nolint:depguard
 	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/logger"                       //nolint:depguard
-	internalgrpc "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/grpc"     //nolint:depguard
-	internalhttp "github.com/perc400/hw/hw12_13_14_15_calendar/internal/server/http"     //nolint:depguard
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/queue/rabbitmq"               //nolint:depguard
+	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/scheduler"                    //nolint:depguard
 	"github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage"                      //nolint:depguard
 	memorystorage "github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage/memory" //nolint:depguard
 	sqlstorage "github.com/perc400/hw/hw12_13_14_15_calendar/internal/storage/sql"       //nolint:depguard
@@ -49,6 +48,7 @@ func main() {
 	switch cfg.Storage.Type {
 	case "memory":
 		storage = memorystorage.New()
+		logg.Warn("scheduler is running with memory storage - events will be lost between restarts")
 	case "sql":
 		storage, err = sqlstorage.New(cfg.SQL.DSN)
 		if err != nil {
@@ -57,43 +57,27 @@ func main() {
 		}
 	}
 
+	publisher, err := rabbitmq.NewClient(cfg.AMQPClient.Queue.Name, cfg.AMQPClient.URL, logg)
+	if err != nil {
+		logg.Info(fmt.Sprintf("%+v", cfg))
+		logg.Error("failed to init RabbitMQ client: " + err.Error())
+		os.Exit(1)
+	}
 	calendar := app.New(logg, storage)
+	sched := scheduler.NewScheduler(logg, calendar, publisher, time.Duration(cfg.AMQPClient.PollInterval)*time.Second)
 
-	httpServer := internalhttp.NewServer(logg, calendar, cfg.Server.HTTPServer.Host, cfg.Server.HTTPServer.Port)
-	grpcServer := internalgrpc.NewServer(logg, calendar)
-
-	ctx, cancel := signal.NotifyContext(context.Background(),
+	ctx, stop := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	defer cancel()
+	defer stop()
 
-	errCh := make(chan error, 2)
+	go sched.Start(ctx)
 
-	logg.Info("calendar is running...")
+	<-ctx.Done()
+	logg.Info("shutting down scheduler...")
 
-	go func() {
-		errCh <- grpcServer.Start(net.JoinHostPort("", cfg.Server.GRPCServer.Port))
-	}()
-
-	go func() {
-		errCh <- httpServer.Start()
-	}()
-
-	select {
-	case <-ctx.Done():
-		logg.Info("shutdown signal received")
-	case err := <-errCh:
-		logg.Error("server error: " + err.Error())
-		cancel()
+	if err := publisher.Close(); err != nil {
+		logg.Error("failed to close rabbitmq: " + err.Error())
 	}
-
-	ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	defer cancel()
-
-	if err := httpServer.Stop(ctxShutdown); err != nil {
-		logg.Error("failed to stop http server: " + err.Error())
-	}
-
-	grpcServer.Stop()
 
 	if closer, ok := storage.(interface{ Close() error }); ok {
 		if err := closer.Close(); err != nil {
